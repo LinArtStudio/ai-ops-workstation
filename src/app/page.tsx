@@ -1,65 +1,310 @@
-import Image from "next/image";
+// 首页 - 数据看板
+'use client';
 
-export default function Home() {
+import React, { useState, useEffect } from 'react';
+import { Row, Col, Card, Statistic, Table, Tag, Typography, Spin, Empty } from 'antd';
+import {
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  UserOutlined,
+  EyeOutlined,
+  SwapOutlined,
+  DollarOutlined
+} from '@ant-design/icons';
+import dynamic from 'next/dynamic';
+
+const { Title, Text } = Typography;
+
+// 动态导入ECharts避免SSR问题
+const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false });
+
+// 模拟数据
+const mockMetrics = {
+  dau: { current: 1250, change: '+12.5%', trend: 'up' as string },
+  retention: { current: 45.2, change: '+3.2%', trend: 'up' as string },
+  conversion: { current: 8.7, change: '-1.2%', trend: 'down' as string },
+  revenue: { current: 15680, change: '+25.8%', trend: 'up' as string }
+};
+
+const mockRecentActivity = [
+  { key: '1', type: '新用户', count: 156, time: '今天', status: 'success' },
+  { key: '2', type: '反馈提交', count: 23, time: '今天', status: 'processing' },
+  { key: '3', type: '竞品更新', count: 5, time: '昨天', status: 'warning' },
+  { key: '4', type: '周报生成', count: 1, time: '昨天', status: 'default' },
+];
+
+const mockFeedbackDistribution = [
+  { name: 'Bug反馈', value: 35 },
+  { name: '功能建议', value: 45 },
+  { name: '体验问题', value: 20 },
+  { name: '性能问题', value: 15 },
+  { name: '其他', value: 10 }
+];
+
+const DashboardPage: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // 模拟加载
+    setTimeout(() => setLoading(false), 500);
+  }, []);
+
+  // DAU趋势图配置
+  const dauTrendOption = {
+    tooltip: {
+      trigger: 'axis' as const,
+      axisPointer: {
+        type: 'shadow' as const
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: [
+      {
+        type: 'category' as const,
+        data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+        axisTick: {
+          alignWithLabel: true
+        }
+      }
+    ],
+    yAxis: [
+      {
+        type: 'value' as const
+      }
+    ],
+    series: [
+      {
+        name: 'DAU',
+        type: 'bar',
+        barWidth: '60%',
+        data: [980, 1100, 1050, 1200, 1350, 1500, 1250],
+        itemStyle: {
+          borderRadius: [4, 4, 0, 0],
+          color: {
+            type: 'linear' as const,
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: '#1677ff' },
+              { offset: 1, color: '#69b1ff' }
+            ]
+          }
+        }
+      }
+    ]
+  };
+
+  // 反馈分布饼图配置
+  const feedbackPieOption = {
+    tooltip: {
+      trigger: 'item' as const
+    },
+    legend: {
+      orient: 'vertical' as const,
+      left: 'left'
+    },
+    series: [
+      {
+        name: '反馈类型',
+        type: 'pie',
+        radius: '50%',
+        data: mockFeedbackDistribution,
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowOffsetX: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.5)'
+          }
+        }
+      }
+    ]
+  };
+
+  // 最近活动表格列
+  const activityColumns = [
+    {
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+    },
+    {
+      title: '数量',
+      dataIndex: 'count',
+      key: 'count',
+      render: (count: number) => <Text strong>{count}</Text>
+    },
+    {
+      title: '时间',
+      dataIndex: 'time',
+      key: 'time',
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => {
+        const colorMap: Record<string, string> = {
+          success: 'green',
+          processing: 'blue',
+          warning: 'orange',
+          default: 'default'
+        };
+        const textMap: Record<string, string> = {
+          success: '成功',
+          processing: '处理中',
+          warning: '需关注',
+          default: '正常'
+        };
+        return <Tag color={colorMap[status]}>{textMap[status]}</Tag>;
+      }
+    }
+  ];
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '100px 0' }}>
+        <Spin size="large" />
+        <div style={{ marginTop: 16 }}>
+          <Text type="secondary">加载数据中...</Text>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <div>
+      {/* 页面标题 */}
+      <div style={{ marginBottom: 24 }}>
+        <Title level={4} style={{ margin: 0 }}>📊 数据看板</Title>
+        <Text type="secondary">实时监控产品核心指标</Text>
+      </div>
+
+      {/* 核心指标卡片 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card className="metric-card">
+            <Statistic
+              title="日活用户 (DAU)"
+              value={mockMetrics.dau.current}
+              prefix={<UserOutlined />}
+              suffix={
+                <span style={{ fontSize: 14, color: mockMetrics.dau.trend === 'up' ? '#52c41a' : '#ff4d4f' }}>
+                  {mockMetrics.dau.trend === 'up' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                  {' '}{mockMetrics.dau.change}
+                </span>
+              }
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card className="metric-card">
+            <Statistic
+              title="次日留存率"
+              value={mockMetrics.retention.current}
+              suffix={
+                <span>
+                  %
+                  <span style={{ fontSize: 14, color: mockMetrics.retention.trend === 'up' ? '#52c41a' : '#ff4d4f', marginLeft: 8 }}>
+                    {mockMetrics.retention.trend === 'up' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                    {' '}{mockMetrics.retention.change}
+                  </span>
+                </span>
+              }
+              prefix={<EyeOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card className="metric-card">
+            <Statistic
+              title="转化率"
+              value={mockMetrics.conversion.current}
+              suffix={
+                <span>
+                  %
+                  <span style={{ fontSize: 14, color: mockMetrics.conversion.trend === 'up' ? '#52c41a' : '#ff4d4f', marginLeft: 8 }}>
+                    {mockMetrics.conversion.trend === 'up' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                    {' '}{mockMetrics.conversion.change}
+                  </span>
+                </span>
+              }
+              prefix={<SwapOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card className="metric-card">
+            <Statistic
+              title="收入 (元)"
+              value={mockMetrics.revenue.current}
+              prefix={<DollarOutlined />}
+              suffix={
+                <span style={{ fontSize: 14, color: mockMetrics.revenue.trend === 'up' ? '#52c41a' : '#ff4d4f' }}>
+                  {mockMetrics.revenue.trend === 'up' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                  {' '}{mockMetrics.revenue.change}
+                </span>
+              }
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 图表区域 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} lg={16}>
+          <Card title="📈 DAU趋势（近7天）">
+            <ReactECharts option={dauTrendOption} style={{ height: 300 }} />
+          </Card>
+        </Col>
+        <Col xs={24} lg={8}>
+          <Card title="💬 反馈分布">
+            <ReactECharts option={feedbackPieOption} style={{ height: 300 }} />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 最近活动 */}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={16}>
+          <Card title="🔔 最近活动">
+            <Table
+              columns={activityColumns}
+              dataSource={mockRecentActivity}
+              pagination={false}
+              size="small"
+            />
+          </Card>
+        </Col>
+        <Col xs={24} lg={8}>
+          <Card title="💡 AI洞察">
+            <div style={{ marginBottom: 12 }}>
+              <Tag color="blue">洞察1</Tag>
+              <Text>本周DAU较上周增长12.5%，主要来自新用户增长</Text>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <Tag color="orange">洞察2</Tag>
+              <Text>转化率下降1.2%，建议优化注册流程</Text>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <Tag color="green">洞察3</Tag>
+              <Text>收入增长25.8%，付费用户比例提升</Text>
+            </div>
+            <div>
+              <Tag color="purple">建议</Tag>
+              <Text>关注竞品动态，近期有3个竞品更新了功能</Text>
+            </div>
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
-}
+};
+
+export default DashboardPage;
