@@ -2,18 +2,21 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Statistic, Table, Tag, Typography, Spin, Empty } from 'antd';
+import { Row, Col, Card, Statistic, Table, Tag, Typography, Spin, Empty, Progress, Space, Tooltip } from 'antd';
 import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   UserOutlined,
   EyeOutlined,
   SwapOutlined,
-  DollarOutlined
+  DollarOutlined,
+  InfoCircleOutlined,
+  RiseOutlined,
+  FallOutlined
 } from '@ant-design/icons';
 import dynamic from 'next/dynamic';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 // 动态导入ECharts避免SSR问题
 const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false });
@@ -189,24 +192,44 @@ const DashboardPage: React.FC = () => {
       {/* 核心指标卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="metric-card">
+          <Card 
+            className="metric-card"
+            style={{ 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none'
+            }}
+          >
             <Statistic
-              title="日活用户 (DAU)"
+              title={<span style={{ color: 'rgba(255,255,255,0.85)' }}>日活用户 (DAU)</span>}
               value={mockMetrics.dau.current}
-              prefix={<UserOutlined />}
+              prefix={<UserOutlined style={{ color: '#fff' }} />}
               suffix={
                 <span style={{ fontSize: 14, color: mockMetrics.dau.trend === 'up' ? '#52c41a' : '#ff4d4f' }}>
                   {mockMetrics.dau.trend === 'up' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
                   {' '}{mockMetrics.dau.change}
                 </span>
               }
+              valueStyle={{ color: '#fff', fontSize: 28, fontWeight: 700 }}
             />
+            <div style={{ marginTop: 8 }}>
+              <Tooltip title="较上周同期">
+                <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>
+                  <InfoCircleOutlined /> 较上周 +12.5%
+                </Text>
+              </Tooltip>
+            </div>
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="metric-card">
+          <Card 
+            className="metric-card"
+            style={{ 
+              background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+              border: 'none'
+            }}
+          >
             <Statistic
-              title="次日留存率"
+              title={<span style={{ color: 'rgba(255,255,255,0.85)' }}>次日留存率</span>}
               value={mockMetrics.retention.current}
               suffix={
                 <span>
@@ -217,14 +240,30 @@ const DashboardPage: React.FC = () => {
                   </span>
                 </span>
               }
-              prefix={<EyeOutlined />}
+              prefix={<EyeOutlined style={{ color: '#fff' }} />}
+              valueStyle={{ color: '#fff', fontSize: 28, fontWeight: 700 }}
             />
+            <div style={{ marginTop: 8 }}>
+              <Progress 
+                percent={mockMetrics.retention.current} 
+                strokeColor="#fff" 
+                trailColor="rgba(255,255,255,0.2)"
+                showInfo={false}
+                size="small"
+              />
+            </div>
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="metric-card">
+          <Card 
+            className="metric-card"
+            style={{ 
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              border: 'none'
+            }}
+          >
             <Statistic
-              title="转化率"
+              title={<span style={{ color: 'rgba(255,255,255,0.85)' }}>转化率</span>}
               value={mockMetrics.conversion.current}
               suffix={
                 <span>
@@ -235,23 +274,45 @@ const DashboardPage: React.FC = () => {
                   </span>
                 </span>
               }
-              prefix={<SwapOutlined />}
+              prefix={<SwapOutlined style={{ color: '#fff' }} />}
+              valueStyle={{ color: '#fff', fontSize: 28, fontWeight: 700 }}
             />
+            <div style={{ marginTop: 8 }}>
+              <Tooltip title="目标: 10%">
+                <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>
+                  <RiseOutlined /> 距目标还差 1.3%
+                </Text>
+              </Tooltip>
+            </div>
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="metric-card">
+          <Card 
+            className="metric-card"
+            style={{ 
+              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              border: 'none'
+            }}
+          >
             <Statistic
-              title="收入 (元)"
+              title={<span style={{ color: 'rgba(255,255,255,0.85)' }}>收入 (元)</span>}
               value={mockMetrics.revenue.current}
-              prefix={<DollarOutlined />}
+              prefix={<DollarOutlined style={{ color: '#fff' }} />}
               suffix={
                 <span style={{ fontSize: 14, color: mockMetrics.revenue.trend === 'up' ? '#52c41a' : '#ff4d4f' }}>
                   {mockMetrics.revenue.trend === 'up' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
                   {' '}{mockMetrics.revenue.change}
                 </span>
               }
+              valueStyle={{ color: '#fff', fontSize: 28, fontWeight: 700 }}
             />
+            <div style={{ marginTop: 8 }}>
+              <Tooltip title="月度目标: ¥20,000">
+                <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>
+                  <DollarOutlined /> 完成度 78.4%
+                </Text>
+              </Tooltip>
+            </div>
           </Card>
         </Col>
       </Row>
