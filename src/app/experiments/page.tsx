@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { Card, Table, Tag, Button, Modal, Form, Input, Select, Typography, message, Space, Tooltip, Row, Col, Progress, Statistic } from 'antd';
 import { PlusOutlined, ExperimentOutlined, PlayCircleOutlined, PauseCircleOutlined, CheckCircleOutlined, RobotOutlined } from '@ant-design/icons';
+import EmptyState from '@/components/EmptyState';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -333,12 +334,21 @@ const ExperimentsPage: React.FC = () => {
 
       {/* 实验列表 */}
       <Card>
-        <Table
-          columns={columns}
-          dataSource={experiments}
-          rowKey="id"
-          pagination={{ pageSize: 10 }}
-        />
+        {experiments.length === 0 ? (
+          <EmptyState
+            title="暂无实验"
+            description="点击下方按钮创建第一个增长实验"
+            actionText="创建实验"
+            onAction={() => setModalVisible(true)}
+          />
+        ) : (
+          <Table
+            columns={columns}
+            dataSource={experiments}
+            rowKey="id"
+            pagination={{ pageSize: 10 }}
+          />
+        )}
       </Card>
 
       {/* 创建实验弹窗 */}

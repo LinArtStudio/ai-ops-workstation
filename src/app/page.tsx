@@ -184,9 +184,12 @@ const DashboardPage: React.FC = () => {
   return (
     <div>
       {/* 页面标题 */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0 }}>📊 数据看板</Title>
-        <Text type="secondary">实时监控产品核心指标</Text>
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <Title level={4} style={{ margin: 0 }}>📊 数据看板</Title>
+          <Text type="secondary">实时监控产品核心指标</Text>
+        </div>
+        <Tag color="orange">演示数据</Tag>
       </div>
 
       {/* 核心指标卡片 */}

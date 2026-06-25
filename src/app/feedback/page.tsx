@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Card, Table, Tag, Button, Modal, Form, Input, Select, Typography, message, Space, Tooltip } from 'antd';
 import { PlusOutlined, FilterOutlined, RobotOutlined, ReloadOutlined } from '@ant-design/icons';
 import { analyzeFeedback } from '@/lib/ai';
+import EmptyState from '@/components/EmptyState';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -326,12 +327,21 @@ const FeedbackPage: React.FC = () => {
 
       {/* 反馈列表 */}
       <Card>
-        <Table
-          columns={columns}
-          dataSource={filteredFeedbacks}
-          rowKey="id"
-          pagination={{ pageSize: 10 }}
-        />
+        {filteredFeedbacks.length === 0 ? (
+          <EmptyState
+            title="暂无反馈"
+            description="点击下方按钮添加第一条用户反馈"
+            actionText="添加反馈"
+            onAction={() => setModalVisible(true)}
+          />
+        ) : (
+          <Table
+            columns={columns}
+            dataSource={filteredFeedbacks}
+            rowKey="id"
+            pagination={{ pageSize: 10 }}
+          />
+        )}
       </Card>
 
       {/* 添加反馈弹窗 */}

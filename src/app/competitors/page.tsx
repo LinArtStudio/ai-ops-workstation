@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Card, Table, Tag, Button, Modal, Form, Input, Typography, message, Space, Tooltip, Row, Col, Descriptions } from 'antd';
 import { PlusOutlined, EyeOutlined, RobotOutlined, LinkOutlined, EditOutlined } from '@ant-design/icons';
 import { generateCompetitorAnalysis } from '@/lib/ai';
+import EmptyState from '@/components/EmptyState';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -262,12 +263,21 @@ const CompetitorsPage: React.FC = () => {
 
       {/* 竞品列表 */}
       <Card>
-        <Table
-          columns={columns}
-          dataSource={competitors}
-          rowKey="id"
-          pagination={{ pageSize: 10 }}
-        />
+        {competitors.length === 0 ? (
+          <EmptyState
+            title="暂无竞品"
+            description="点击下方按钮添加第一个竞品"
+            actionText="添加竞品"
+            onAction={() => setModalVisible(true)}
+          />
+        ) : (
+          <Table
+            columns={columns}
+            dataSource={competitors}
+            rowKey="id"
+            pagination={{ pageSize: 10 }}
+          />
+        )}
       </Card>
 
       {/* 添加竞品弹窗 */}
