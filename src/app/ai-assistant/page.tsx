@@ -2,8 +2,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, Input, Button, List, Tag, Typography, Spin, message } from 'antd';
-import { SendOutlined, RobotOutlined, UserOutlined, ClearOutlined } from '@ant-design/icons';
+import { Card, Input, Button, List, Tag, Typography, Spin, message, Tooltip, Space } from 'antd';
+import { SendOutlined, RobotOutlined, UserOutlined, ClearOutlined, CopyOutlined, LikeOutlined, DislikeOutlined } from '@ant-design/icons';
 
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -13,6 +13,8 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  sources?: string[]; // 引用来源
+  helpful?: boolean; // 用户反馈
 }
 
 const AiAssistantPage: React.FC = () => {
@@ -119,6 +121,20 @@ const AiAssistantPage: React.FC = () => {
     setMessages([]);
   };
 
+  // 处理反馈
+  const handleFeedback = (messageId: string, helpful: boolean) => {
+    setMessages(prev => prev.map(m =>
+      m.id === messageId ? { ...m, helpful } : m
+    ));
+    message.success(helpful ? '感谢反馈！' : '我们会改进！');
+  };
+
+  // 复制内容
+  const handleCopy = (content: string) => {
+    navigator.clipboard.writeText(content);
+    message.success('已复制到剪贴板');
+  };
+
   // 快捷问题
   const quickQuestions = [
     '上周DAU是多少？',
@@ -199,14 +215,57 @@ const AiAssistantPage: React.FC = () => {
                     </Text>
                   </div>
                   <Paragraph
-                    style={{
-                      margin: 0,
-                      color: msg.role === 'user' ? '#333' : '#fff',
-                      whiteSpace: 'pre-wrap'
-                    }}
+                  style={{
+                    margin: 0,
+                    color: msg.role === 'user' ? '#333' : '#fff',
+                    whiteSpace: 'pre-wrap'
+                  }}
                   >
-                    {msg.content || (loading && msg.id === messages[messages.length - 1]?.id ? '思考中...' : '')}
+                  {msg.content || (loading && msg.id === messages[messages.length - 1]?.id ? '思考中...' : '')}
                   </Paragraph>
+                  {/* 引用来源 */}
+                  {msg.sources && msg.sources.length > 0 && (
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+                    <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>📎 引用来源：</Text>
+                    <div style={{ marginTop: 4 }}>
+                      {msg.sources.map((source, idx) => (
+                        <Tag key={idx} color="blue" style={{ marginBottom: 4 }}>{source}</Tag>
+                      ))}
+                    </div>
+                  </div>
+                  )}
+                  {/* 反馈按钮 */}
+                  {msg.role === 'assistant' && (
+                  <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                    <Tooltip title="有帮助">
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<LikeOutlined />}
+                        style={{ color: msg.helpful === true ? '#52c41a' : 'rgba(255,255,255,0.5)' }}
+                        onClick={() => handleFeedback(msg.id, true)}
+                      />
+                    </Tooltip>
+                    <Tooltip title="无帮助">
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<DislikeOutlined />}
+                        style={{ color: msg.helpful === false ? '#ff4d4f' : 'rgba(255,255,255,0.5)' }}
+                        onClick={() => handleFeedback(msg.id, false)}
+                      />
+                    </Tooltip>
+                    <Tooltip title="复制">
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<CopyOutlined />}
+                        style={{ color: 'rgba(255,255,255,0.5)' }}
+                        onClick={() => handleCopy(msg.content)}
+                      />
+                    </Tooltip>
+                  </div>
+                  )}
                 </div>
               </div>
             ))}
