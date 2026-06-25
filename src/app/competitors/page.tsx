@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { Card, Table, Tag, Button, Modal, Form, Input, Typography, message, Space, Tooltip, Row, Col, Descriptions } from 'antd';
 import { PlusOutlined, EyeOutlined, RobotOutlined, LinkOutlined, EditOutlined } from '@ant-design/icons';
+import { generateCompetitorAnalysis } from '@/lib/ai';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -92,22 +93,42 @@ const CompetitorsPage: React.FC = () => {
   };
 
   // AI分析竞品
-  const handleAiAnalyze = (id: string) => {
+  const handleAiAnalyze = async (id: string) => {
+    const competitor = competitors.find(c => c.id === id);
+    if (!competitor) return;
+
     message.info('AI正在分析竞品...');
-    // 模拟AI分析
-    setTimeout(() => {
+    
+    try {
+      // 构建竞品信息
+      const competitorInfo = `
+竞品名称：${competitor.name}
+官网：${competitor.url}
+定价：${competitor.pricing}
+备注：${competitor.notes}
+优势：${competitor.strengths.join('、')}
+劣势：${competitor.weaknesses.join('、')}
+      `;
+      
+      // 调用真实AI API分析
+      const analysis = await generateCompetitorAnalysis(competitor.name, competitorInfo);
+      
+      // 更新竞品数据
       setCompetitors(prev => prev.map(c =>
         c.id === id
-          ? {
-            ...c,
-            strengths: ['功能全面', '用户体验好', '技术支持完善'],
-            weaknesses: ['价格较高', '学习成本高'],
-            lastUpdated: new Date().toLocaleDateString()
-          }
+          ? { 
+              ...c, 
+              notes: analysis,
+              lastUpdated: new Date().toLocaleDateString() 
+            }
           : c
       ));
-      message.success('AI分析完成');
-    }, 1500);
+      
+      message.success('AI分析完成！');
+    } catch (error) {
+      console.error('AI分析失败:', error);
+      message.error('AI服务暂时不可用，请稍后重试');
+    }
   };
 
   // 查看详情

@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Card, Button, Typography, Input, Select, DatePicker, Space, message, Spin, Row, Col, Tag, Divider } from 'antd';
 import { FileTextOutlined, RobotOutlined, DownloadOutlined, CopyOutlined, ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { generateWeeklyReport } from '@/lib/ai';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -29,96 +30,18 @@ const ReportsPage: React.FC = () => {
 
     setGenerating(true);
     try {
-      // 模拟AI生成
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      const mockReport = `# 📊 产品运营周报
-
-**周期：** ${weekRange[0].format('YYYY-MM-DD')} 至 ${weekRange[1].format('YYYY-MM-DD')}
-
----
-
-## 一、核心指标变化
-
-| 指标 | 本周 | 上周 | 变化 | 趋势 |
-|------|------|------|------|------|
-| DAU | 1,250 | 1,111 | +12.5% | 📈 |
-| 次日留存 | 45.2% | 43.8% | +1.4% | 📈 |
-| 转化率 | 8.7% | 9.8% | -1.1% | 📉 |
-| 收入 | ¥15,680 | ¥12,480 | +25.6% | 📈 |
-
----
-
-## 二、关键洞察
-
-1. **用户增长强劲**：本周DAU较上周增长12.5%，主要来自自然流量和内容营销
-2. **留存稳步提升**：次日留存率提升1.4%，说明产品粘性增强
-3. **转化率下滑**：转化率下降1.1%，需要关注注册流程优化
-4. **收入大幅增长**：收入增长25.6%，付费用户比例提升
-
----
-
-## 三、用户反馈摘要
-
-### 高频问题（共23条反馈）
-- **性能问题**：8条（35%）- 登录页加载慢、数据导出卡顿
-- **功能建议**：6条（26%）- 数据导出、批量操作、快捷键
-- **体验问题**：5条（22%）- 界面布局、操作流程
-- **Bug反馈**：4条（17%）- 表单提交失败、数据不同步
-
-### 情感分析
-- 😊 积极：30% - 界面设计、AI功能
-- 😐 中性：45% - 功能建议
-- 😞 消极：25% - 性能问题、Bug
-
----
-
-## 四、竞品动态
-
-### 神策数据
-- 发布新版本，新增AI智能洞察功能
-- 推出中小企业优惠方案
-
-### GrowingIO
-- 与某电商平台达成战略合作
-- 发布无埋点2.0技术白皮书
-
-### Microsoft Clarity
-- 新增AI热力图分析功能
-- 支持更多语言版本
-
----
-
-## 五、下周计划
-
-### 重点任务
-1. **优化注册流程**：针对转化率下滑，简化注册步骤
-2. **性能优化**：解决登录页加载慢问题
-3. **功能迭代**：开发数据导出功能
-4. **用户运营**：收集更多用户反馈，建立反馈闭环
-
-### 关键指标目标
-- DAU：1,300（+4%）
-- 转化率：9.5%（+0.8%）
-- 用户满意度：85%+
-
----
-
-## 六、备注
-
-- 本周完成用户访谈5次，收集深度反馈
-- 内容营销带来新用户增长，需持续投入
-- 竞品动态需密切关注，及时调整策略
-
----
-
-*报告生成时间：${new Date().toLocaleString()}*
-*AI助手自动生成，仅供参考*`;
-
-      setReportContent(mockReport);
-      message.success('周报生成成功！');
+      // 调用真实AI API生成周报
+      const report = await generateWeeklyReport(
+        metricsSummary || '暂无数据',
+        feedbackSummary || '暂无反馈',
+        competitorUpdates || '暂无动态'
+      );
+      
+      setReportContent(report);
+      message.success('周报生成完成！');
     } catch (error) {
-      message.error('生成失败，请重试');
+      console.error('周报生成失败:', error);
+      message.error('AI服务暂时不可用，请稍后重试');
     } finally {
       setGenerating(false);
     }

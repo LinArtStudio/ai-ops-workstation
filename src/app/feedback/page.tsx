@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { Card, Table, Tag, Button, Modal, Form, Input, Select, Typography, message, Space, Tooltip } from 'antd';
 import { PlusOutlined, FilterOutlined, RobotOutlined, ReloadOutlined } from '@ant-design/icons';
+import { analyzeFeedback } from '@/lib/ai';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -111,14 +112,14 @@ const FeedbackPage: React.FC = () => {
   // 添加反馈
   const handleAdd = async (values: { content: string; source: string }) => {
     try {
-      // 模拟AI分析
+      // 先添加反馈，使用默认值
       const newFeedback: Feedback = {
         id: Date.now().toString(),
         content: values.content,
         source: values.source,
-        category: 'other', // AI分析后更新
-        sentiment: 'neutral', // AI分析后更新
-        priority: 3, // AI分析后更新
+        category: 'other',
+        sentiment: 'neutral',
+        priority: 3,
         status: 'new',
         createdAt: new Date().toLocaleString()
       };
@@ -127,6 +128,28 @@ const FeedbackPage: React.FC = () => {
       setModalVisible(false);
       form.resetFields();
       message.success('反馈添加成功，AI正在分析...');
+
+      // 异步调用AI分析
+      try {
+        const analysis = await analyzeFeedback(values.content);
+        
+        // 更新反馈的AI分析结果
+        setFeedbacks(prev => prev.map(f => 
+          f.id === newFeedback.id 
+            ? { 
+                ...f, 
+                category: analysis.category,
+                sentiment: analysis.sentiment,
+                priority: analysis.priority
+              }
+            : f
+        ));
+        
+        message.success('AI分析完成！');
+      } catch (aiError) {
+        console.error('AI分析失败:', aiError);
+        message.warning('AI分析暂时不可用，已使用默认分类');
+      }
     } catch (error) {
       message.error('添加失败');
     }

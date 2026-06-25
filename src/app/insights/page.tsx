@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Typography, Space, Tag, message, Row, Col, Steps, Input, Select, Divider } from 'antd';
 import { BulbOutlined, FileTextOutlined, RocketOutlined, CheckCircleOutlined, CopyOutlined, DownloadOutlined } from '@ant-design/icons';
+import { chatCompletion } from '@/lib/ai';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -62,53 +63,49 @@ const InsightToActionPage: React.FC = () => {
     setGenerating(true);
     setSelectedInsight(insightId);
 
-    // 模拟AI生成
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
     const insight = insights.find(i => i.id === insightId);
     if (!insight) return;
 
-    const newAction: Action = {
-      id: Date.now().toString(),
-      type: 'prd',
-      title: `PRD: ${insight.title}`,
-      content: `# 产品需求文档
+    try {
+      // 调用真实AI API生成PRD
+      const prompt = `你是一个产品经理专家。基于以下产品洞察，生成一份简洁的PRD文档。
 
-## 1. 背景
-${insight.description}
+产品洞察：
+- 标题：${insight.title}
+- 描述：${insight.description}
+- 优先级：${insight.priority}
+- 来源：${insight.source}
 
-## 2. 目标
-- 提升用户体验
-- 解决核心痛点
-- 增强产品竞争力
+请生成PRD文档，包含：
+1. 背景
+2. 目标
+3. 需求详情（功能需求和非功能需求）
+4. 验收标准
+5. 时间计划
 
-## 3. 需求详情
-### 3.1 功能需求
-- [ ] 需求1：优化新手引导流程
-- [ ] 需求2：添加进度提示
-- [ ] 需求3：优化加载速度
+使用Markdown格式，内容要专业、可执行。`;
 
-### 3.2 非功能需求
-- 性能：页面加载时间 < 2秒
-- 可用性：支持移动端适配
-- 安全性：符合数据安全规范
+      const content = await chatCompletion([
+        { role: 'system', content: '你是一个产品经理专家，擅长撰写PRD文档。' },
+        { role: 'user', content: prompt }
+      ], { temperature: 0.7, maxTokens: 2048 });
 
-## 4. 验收标准
-- [ ] 用户留存率提升5%
-- [ ] 用户满意度达到90%
-- [ ] 无P0级bug
+      const newAction: Action = {
+        id: Date.now().toString(),
+        type: 'prd',
+        title: `PRD: ${insight.title}`,
+        content: content,
+        status: 'generated'
+      };
 
-## 5. 时间计划
-- 需求评审：2026-06-27
-- 开发完成：2026-07-03
-- 测试完成：2026-07-05
-- 上线发布：2026-07-06`,
-      status: 'generated'
-    };
-
-    setActions(prev => [...prev, newAction]);
-    setGenerating(false);
-    message.success('PRD生成完成！');
+      setActions(prev => [...prev, newAction]);
+      message.success('PRD生成完成！');
+    } catch (error) {
+      console.error('PRD生成失败:', error);
+      message.error('AI服务暂时不可用，请稍后重试');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   // 生成任务
@@ -116,49 +113,49 @@ ${insight.description}
     setGenerating(true);
     setSelectedInsight(insightId);
 
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
     const insight = insights.find(i => i.id === insightId);
     if (!insight) return;
 
-    const newAction: Action = {
-      id: Date.now().toString(),
-      type: 'task',
-      title: `任务: ${insight.title}`,
-      content: `## 任务清单
+    try {
+      // 调用真实AI API生成任务清单
+      const prompt = `你是一个项目管理专家。基于以下产品洞察，生成一份任务清单。
 
-### 优先级：${insight.priority === 'high' ? '🔴 高' : insight.priority === 'medium' ? '🟡 中' : '🟢 低'}
+产品洞察：
+- 标题：${insight.title}
+- 描述：${insight.description}
+- 优先级：${insight.priority}
+- 来源：${insight.source}
 
-### 任务列表
-1. **需求分析** (预计2小时)
-   - 深入分析问题根因
-   - 收集用户反馈
-   - 确定解决方案
+请生成任务清单，包含：
+1. 优先级标注
+2. 任务列表（每个任务包含预计时间）
+3. 负责人建议
+4. 截止日期建议
+5. 依赖项说明
 
-2. **方案设计** (预计4小时)
-   - 设计技术方案
-   - 评审可行性
-   - 确定实现路径
+使用Markdown格式，任务要具体、可执行。`;
 
-3. **开发实现** (预计8小时)
-   - 编写代码
-   - 单元测试
-   - 代码审查
+      const content = await chatCompletion([
+        { role: 'system', content: '你是一个项目管理专家，擅长任务拆解和排期。' },
+        { role: 'user', content: prompt }
+      ], { temperature: 0.7, maxTokens: 1500 });
 
-4. **测试验收** (预计4小时)
-   - 功能测试
-   - 性能测试
-   - 用户验收
+      const newAction: Action = {
+        id: Date.now().toString(),
+        type: 'task',
+        title: `任务: ${insight.title}`,
+        content: content,
+        status: 'generated'
+      };
 
-### 负责人：待分配
-### 截止日期：2026-07-06
-### 依赖项：无`,
-      status: 'generated'
-    };
-
-    setActions(prev => [...prev, newAction]);
-    setGenerating(false);
-    message.success('任务清单生成完成！');
+      setActions(prev => [...prev, newAction]);
+      message.success('任务清单生成完成！');
+    } catch (error) {
+      console.error('任务生成失败:', error);
+      message.error('AI服务暂时不可用，请稍后重试');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   // 生成邮件
@@ -166,50 +163,50 @@ ${insight.description}
     setGenerating(true);
     setSelectedInsight(insightId);
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
     const insight = insights.find(i => i.id === insightId);
     if (!insight) return;
 
-    const newAction: Action = {
-      id: Date.now().toString(),
-      type: 'email',
-      title: `邮件: ${insight.title}`,
-      content: `主题：【产品优化建议】${insight.title}
+    try {
+      // 调用真实AI API生成邮件
+      const prompt = `你是一个商务沟通专家。基于以下产品洞察，生成一封专业的邮件。
 
-Hi 团队，
+产品洞察：
+- 标题：${insight.title}
+- 描述：${insight.description}
+- 优先级：${insight.priority}
+- 来源：${insight.source}
 
-基于最近的数据分析和用户反馈，我发现了一个重要的优化机会：
+请生成邮件，包含：
+1. 主题行
+2. 问题描述
+3. 影响范围
+4. 建议方案
+5. 预期效果
+6. 下一步行动
 
-## 问题描述
-${insight.description}
+使用专业的商务邮件格式，语气要正式、有说服力。`;
 
-## 影响范围
-- 影响用户：所有新用户
-- 影响指标：次日留存率
-- 优先级：${insight.priority === 'high' ? '高' : insight.priority === 'medium' ? '中' : '低'}
+      const content = await chatCompletion([
+        { role: 'system', content: '你是一个商务沟通专家，擅长撰写专业的商务邮件。' },
+        { role: 'user', content: prompt }
+      ], { temperature: 0.7, maxTokens: 1500 });
 
-## 建议方案
-1. 立即行动：优化新手引导流程
-2. 短期计划：添加进度提示和帮助文档
-3. 长期规划：建立用户反馈闭环
+      const newAction: Action = {
+        id: Date.now().toString(),
+        type: 'email',
+        title: `邮件: ${insight.title}`,
+        content: content,
+        status: 'generated'
+      };
 
-## 预期效果
-- 留存率提升：5-10%
-- 用户满意度：提升15%
-- 转化率：提升8%
-
-## 下一步
-请各位在明天下午5点前回复意见，我们将安排周四下午2点的需求评审会。
-
-Best regards,
-AI产品运营助手`,
-      status: 'generated'
-    };
-
-    setActions(prev => [...prev, newAction]);
-    setGenerating(false);
-    message.success('邮件生成完成！');
+      setActions(prev => [...prev, newAction]);
+      message.success('邮件生成完成！');
+    } catch (error) {
+      console.error('邮件生成失败:', error);
+      message.error('AI服务暂时不可用，请稍后重试');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   // 复制内容
