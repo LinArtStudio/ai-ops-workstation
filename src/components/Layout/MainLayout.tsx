@@ -11,7 +11,8 @@ import {
   ExperimentOutlined,
   RobotOutlined,
   SettingOutlined,
-  UserOutlined
+  UserOutlined,
+  BulbOutlined
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -52,6 +53,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       key: '/experiments',
       icon: <ExperimentOutlined />,
       label: '增长实验',
+    },
+    {
+      key: '/insights',
+      icon: <BulbOutlined />,
+      label: '洞察→行动',
     },
     {
       key: '/ai-assistant',
