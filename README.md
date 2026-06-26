@@ -67,7 +67,7 @@ AI产品运营工作台是一个面向产品经理和运营人员的AI驱动工�
 ### 1. 克隆项目
 
 ```bash
-cd ~/hermes-workspace/ai-ops-workstation
+cd ~/hermes-workspace/ai-product-ops-workstation
 ```
 
 ### 2. 安装依赖
@@ -103,7 +103,7 @@ npm run dev
 ## 📁 项目结构
 
 ```
-ai-ops-workstation/
+ai-product-ops-workstation/
 ├── src/
 │   ├── app/                    # Next.js App Router
 │   │   ├── api/                # API路由

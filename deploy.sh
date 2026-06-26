@@ -8,7 +8,7 @@ echo "🚀 开始部署 AI产品运营工作台..."
 
 # 配置
 SERVER="root@114.55.110.19"
-REMOTE_DIR="/opt/ai-ops-workstation"
+REMOTE_DIR="/opt/ai-product-ops-workstation"
 LOCAL_DIR="$(pwd)"
 
 # 1. 构建项目
@@ -17,7 +17,7 @@ npm run build
 
 # 2. 打包项目
 echo "📁 打包项目..."
-tar -czf ai-ops-workstation.tar.gz \
+tar -czf ai-product-ops-workstation.tar.gz \
   --exclude=node_modules \
   --exclude=.next \
   --exclude=.git \
@@ -26,7 +26,7 @@ tar -czf ai-ops-workstation.tar.gz \
 
 # 3. 上传到服务器
 echo "⬆️  上传到服务器..."
-scp ai-ops-workstation.tar.gz $SERVER:/tmp/
+scp ai-product-ops-workstation.tar.gz $SERVER:/tmp/
 
 # 4. 在服务器上部署
 echo "🔧 在服务器上部署..."
@@ -35,16 +35,16 @@ ssh $SERVER << 'EOF'
   pm2 stop ai-ops 2>/dev/null || true
   
   # 备份旧版本
-  if [ -d /opt/ai-ops-workstation ]; then
-    mv /opt/ai-ops-workstation /opt/ai-ops-workstation-backup-$(date +%Y%m%d%H%M%S)
+  if [ -d /opt/ai-product-ops-workstation ]; then
+    mv /opt/ai-product-ops-workstation /opt/ai-product-ops-workstation-backup-$(date +%Y%m%d%H%M%S)
   fi
   
   # 创建新目录
-  mkdir -p /opt/ai-ops-workstation
-  cd /opt/ai-ops-workstation
+  mkdir -p /opt/ai-product-ops-workstation
+  cd /opt/ai-product-ops-workstation
   
   # 解压新版本
-  tar -xzf /tmp/ai-ops-workstation.tar.gz
+  tar -xzf /tmp/ai-product-ops-workstation.tar.gz
   
   # 安装依赖
   npm install --production
@@ -60,7 +60,7 @@ EOF
 
 # 5. 清理临时文件
 echo "🧹 清理临时文件..."
-rm -f ai-ops-workstation.tar.gz
+rm -f ai-product-ops-workstation.tar.gz
 
 echo "🎉 部署成功！"
 echo "访问地址: http://114.55.110.19:3000"

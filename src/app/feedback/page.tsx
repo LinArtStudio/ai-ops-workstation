@@ -1,10 +1,11 @@
-// 用户反馈页面
+// 用户反馈页面 - 已接入Supabase数据持久化
 'use client';
 
-import React, { useState } from 'react';
-import { Card, Table, Tag, Button, Modal, Form, Input, Select, Typography, message, Space, Tooltip } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, Table, Tag, Button, Modal, Form, Input, Select, Typography, message, Space, Tooltip, Spin } from 'antd';
 import { PlusOutlined, FilterOutlined, RobotOutlined, ReloadOutlined } from '@ant-design/icons';
 import { analyzeFeedback } from '@/lib/ai';
+import { supabase } from '@/lib/supabase';
 import EmptyState from '@/components/EmptyState';
 
 const { Title, Text } = Typography;
@@ -18,56 +19,42 @@ interface Feedback {
   sentiment: string;
   priority: number;
   status: string;
-  createdAt: string;
+  created_at: string;
 }
 
 const FeedbackPage: React.FC = () => {
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>([
-    {
-      id: '1',
-      content: '登录页面加载太慢了，经常要等5秒以上',
-      source: 'manual',
-      category: 'performance',
-      sentiment: 'negative',
-      priority: 4,
-      status: 'new',
-      createdAt: '2026-06-25 10:30'
-    },
-    {
-      id: '2',
-      content: '希望能增加数据导出功能，方便做报告',
-      source: 'form',
-      category: 'feature',
-      sentiment: 'neutral',
-      priority: 3,
-      status: 'reviewed',
-      createdAt: '2026-06-24 15:20'
-    },
-    {
-      id: '3',
-      content: '界面设计很漂亮，用起来很舒服',
-      source: 'manual',
-      category: 'ux',
-      sentiment: 'positive',
-      priority: 1,
-      status: 'resolved',
-      createdAt: '2026-06-23 09:15'
-    },
-    {
-      id: '4',
-      content: '提交反馈后没有收到确认邮件',
-      source: 'api',
-      category: 'bug',
-      sentiment: 'negative',
-      priority: 3,
-      status: 'in_progress',
-      createdAt: '2026-06-22 14:45'
-    }
-  ]);
-
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [form] = Form.useForm();
+
+  // 从Supabase加载数据
+  useEffect(() => {
+    fetchFeedbacks();
+  }, []);
+
+  const fetchFeedbacks = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('feedback_items')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('加载反馈失败:', error);
+        message.error('加载数据失败');
+        return;
+      }
+
+      setFeedbacks(data || []);
+    } catch (err) {
+      console.error('加载反馈异常:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 状态颜色映射
   const statusColorMap: Record<string, string> = {
@@ -113,19 +100,28 @@ const FeedbackPage: React.FC = () => {
   // 添加反馈
   const handleAdd = async (values: { content: string; source: string }) => {
     try {
-      // 先添加反馈，使用默认值
-      const newFeedback: Feedback = {
-        id: Date.now().toString(),
-        content: values.content,
-        source: values.source,
-        category: 'other',
-        sentiment: 'neutral',
-        priority: 3,
-        status: 'new',
-        createdAt: new Date().toLocaleString()
-      };
+      // 先添加到Supabase
+      const { data, error } = await supabase
+        .from('feedback_items')
+        .insert({
+          content: values.content,
+          source: values.source,
+          category: 'other',
+          sentiment: 'neutral',
+          priority: 3,
+          status: 'new'
+        })
+        .select()
+        .single();
 
-      setFeedbacks(prev => [newFeedback, ...prev]);
+      if (error) {
+        console.error('添加反馈失败:', error);
+        message.error('添加失败');
+        return;
+      }
+
+      // 更新本地状态
+      setFeedbacks(prev => [data, ...prev]);
       setModalVisible(false);
       form.resetFields();
       message.success('反馈添加成功，AI正在分析...');
@@ -134,9 +130,23 @@ const FeedbackPage: React.FC = () => {
       try {
         const analysis = await analyzeFeedback(values.content);
         
-        // 更新反馈的AI分析结果
+        // 更新Supabase中的AI分析结果
+        const { error: updateError } = await supabase
+          .from('feedback_items')
+          .update({
+            category: analysis.category,
+            sentiment: analysis.sentiment,
+            priority: analysis.priority
+          })
+          .eq('id', data.id);
+
+        if (updateError) {
+          console.error('更新AI分析结果失败:', updateError);
+        }
+
+        // 更新本地状态
         setFeedbacks(prev => prev.map(f => 
-          f.id === newFeedback.id 
+          f.id === data.id 
             ? { 
                 ...f, 
                 category: analysis.category,
@@ -156,18 +166,28 @@ const FeedbackPage: React.FC = () => {
     }
   };
 
-  // AI分析反馈
-  const handleAiAnalyze = (id: string) => {
-    message.info('AI正在分析反馈...');
-    // 模拟AI分析
-    setTimeout(() => {
-      setFeedbacks(prev => prev.map(f =>
-        f.id === id
-          ? { ...f, category: 'feature', sentiment: 'neutral', priority: 3 }
-          : f
+  // 更新反馈状态
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('feedback_items')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) {
+        console.error('更新状态失败:', error);
+        message.error('更新失败');
+        return;
+      }
+
+      setFeedbacks(prev => prev.map(f => 
+        f.id === id ? { ...f, status: newStatus } : f
       ));
-      message.success('AI分析完成');
-    }, 1000);
+      message.success('状态更新成功');
+    } catch (err) {
+      console.error('更新状态异常:', err);
+      message.error('更新失败');
+    }
   };
 
   // 过滤反馈
@@ -234,32 +254,25 @@ const FeedbackPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        <Tag color={statusColorMap[status]}>{statusTextMap[status]}</Tag>
+      render: (status: string, record: Feedback) => (
+        <Select
+          value={status}
+          onChange={(value) => handleStatusChange(record.id, value)}
+          style={{ width: 100 }}
+          options={[
+            { value: 'new', label: '新反馈' },
+            { value: 'reviewed', label: '已审阅' },
+            { value: 'in_progress', label: '处理中' },
+            { value: 'resolved', label: '已解决' }
+          ]}
+        />
       )
     },
     {
       title: '时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt'
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_: unknown, record: Feedback) => (
-        <Space>
-          <Tooltip title="AI分析">
-            <Button
-              type="link"
-              icon={<RobotOutlined />}
-              onClick={() => handleAiAnalyze(record.id)}
-            />
-          </Tooltip>
-          <Button type="link" size="small">
-            详情
-          </Button>
-        </Space>
-      )
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (date: string) => new Date(date).toLocaleString()
     }
   ];
 
@@ -269,7 +282,7 @@ const FeedbackPage: React.FC = () => {
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <Title level={4} style={{ margin: 0 }}>💬 用户反馈中心</Title>
-          <Text type="secondary">收集、分析、管理用户反馈</Text>
+          <Text type="secondary">收集、分析、管理用户反馈（数据已持久化到Supabase）</Text>
         </div>
         <Space>
           <Select
@@ -284,7 +297,7 @@ const FeedbackPage: React.FC = () => {
               { value: 'resolved', label: '已解决' }
             ]}
           />
-          <Button icon={<ReloadOutlined />}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={fetchFeedbacks}>刷新</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
             添加反馈
           </Button>
@@ -327,7 +340,14 @@ const FeedbackPage: React.FC = () => {
 
       {/* 反馈列表 */}
       <Card>
-        {filteredFeedbacks.length === 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <Spin size="large" />
+            <div style={{ marginTop: 16 }}>
+              <Text type="secondary">加载中...</Text>
+            </div>
+          </div>
+        ) : filteredFeedbacks.length === 0 ? (
           <EmptyState
             title="暂无反馈"
             description="点击下方按钮添加第一条用户反馈"
