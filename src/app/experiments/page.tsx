@@ -1,9 +1,10 @@
-// 增长实验页面
+// 增长实验页面 - 已接入Supabase数据持久化
 'use client';
 
-import React, { useState } from 'react';
-import { Card, Table, Tag, Button, Modal, Form, Input, Select, Typography, message, Space, Tooltip, Row, Col, Progress, Statistic } from 'antd';
-import { PlusOutlined, ExperimentOutlined, PlayCircleOutlined, PauseCircleOutlined, CheckCircleOutlined, RobotOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Card, Table, Tag, Button, Modal, Form, Input, Select, Typography, message, Space, Tooltip, Row, Col, Progress, Statistic, Spin } from 'antd';
+import { PlusOutlined, ExperimentOutlined, PlayCircleOutlined, PauseCircleOutlined, CheckCircleOutlined, RobotOutlined, DeleteOutlined } from '@ant-design/icons';
+import { supabase } from '@/lib/supabase';
 import EmptyState from '@/components/EmptyState';
 
 const { Title, Text } = Typography;
@@ -13,77 +14,52 @@ interface Experiment {
   id: string;
   name: string;
   hypothesis: string;
-  variantA: string;
-  variantB: string;
-  metricName: string;
+  variant_a: string;
+  variant_b: string;
+  metric_name: string;
   result?: {
-    aValue: number;
-    bValue: number;
+    a_value: number;
+    b_value: number;
     lift: string;
     confidence: number;
   };
   status: 'draft' | 'running' | 'completed';
-  createdAt: string;
+  created_at: string;
 }
 
 const ExperimentsPage: React.FC = () => {
-  const [experiments, setExperiments] = useState<Experiment[]>([
-    {
-      id: '1',
-      name: '注册流程优化',
-      hypothesis: '简化注册步骤可以提升注册转化率',
-      variantA: '当前3步注册流程',
-      variantB: '简化为1步注册（仅手机号）',
-      metricName: '注册转化率',
-      result: {
-        aValue: 8.7,
-        bValue: 12.3,
-        lift: '+41.4%',
-        confidence: 0.95
-      },
-      status: 'completed',
-      createdAt: '2026-06-20'
-    },
-    {
-      id: '2',
-      name: '首页CTA按钮颜色',
-      hypothesis: '蓝色按钮比绿色按钮更能吸引点击',
-      variantA: '绿色按钮（当前）',
-      variantB: '蓝色按钮',
-      metricName: '按钮点击率',
-      result: {
-        aValue: 3.2,
-        bValue: 3.8,
-        lift: '+18.7%',
-        confidence: 0.87
-      },
-      status: 'completed',
-      createdAt: '2026-06-18'
-    },
-    {
-      id: '3',
-      name: '定价页面展示',
-      hypothesis: '展示用户评价可以提升付费转化',
-      variantA: '无用户评价',
-      variantB: '展示3条用户好评',
-      metricName: '付费转化率',
-      status: 'running',
-      createdAt: '2026-06-22'
-    },
-    {
-      id: '4',
-      name: '邮件通知频率',
-      hypothesis: '减少通知频率可以降低退订率',
-      variantA: '每天发送',
-      variantB: '每周发送',
-      metricName: '退订率',
-      status: 'draft',
-      createdAt: '2026-06-24'
-    }
-  ]);
-
+  const [experiments, setExperiments] = useState<Experiment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [form] = Form.useForm();
+
+  // 从Supabase加载数据
+  useEffect(() => {
+    fetchExperiments();
+  }, []);
+
+  const fetchExperiments = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('experiments')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('加载实验失败:', error);
+        message.error('加载数据失败');
+        return;
+      }
+
+      setExperiments(data || []);
+    } catch (err) {
+      console.error('加载实验异常:', err);
+      message.error('加载数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 状态颜色映射
   const statusColorMap: Record<string, string> = {
@@ -110,56 +86,125 @@ const ExperimentsPage: React.FC = () => {
   const handleAdd = async (values: {
     name: string;
     hypothesis: string;
-    variantA: string;
-    variantB: string;
-    metricName: string;
+    variant_a: string;
+    variant_b: string;
+    metric_name: string;
   }) => {
     try {
-      const newExperiment: Experiment = {
-        id: Date.now().toString(),
-        name: values.name,
-        hypothesis: values.hypothesis,
-        variantA: values.variantA,
-        variantB: values.variantB,
-        metricName: values.metricName,
-        status: 'draft',
-        createdAt: new Date().toLocaleDateString()
-      };
+      const { data, error } = await supabase
+        .from('experiments')
+        .insert({
+          name: values.name,
+          hypothesis: values.hypothesis,
+          variant_a: values.variant_a,
+          variant_b: values.variant_b,
+          metric_name: values.metric_name,
+          status: 'draft'
+        })
+        .select()
+        .single();
 
-      setExperiments(prev => [newExperiment, ...prev]);
+      if (error) {
+        console.error('添加实验失败:', error);
+        message.error('添加失败');
+        return;
+      }
+
+      setExperiments(prev => [data, ...prev]);
       setModalVisible(false);
       form.resetFields();
       message.success('实验创建成功');
-    } catch (error) {
-      message.error('创建失败');
+    } catch (err) {
+      console.error('添加实验异常:', err);
+      message.error('添加失败');
     }
   };
 
+  // 删除实验
+  const handleDelete = async (id: string) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: '确定要删除这个实验吗？',
+      onOk: async () => {
+        try {
+          const { error } = await supabase
+            .from('experiments')
+            .delete()
+            .eq('id', id);
+
+          if (error) {
+            console.error('删除实验失败:', error);
+            message.error('删除失败');
+            return;
+          }
+
+          setExperiments(prev => prev.filter(e => e.id !== id));
+          message.success('删除成功');
+        } catch (err) {
+          console.error('删除实验异常:', err);
+          message.error('删除失败');
+        }
+      }
+    });
+  };
+
   // 开始实验
-  const handleStart = (id: string) => {
-    setExperiments(prev => prev.map(e =>
-      e.id === id ? { ...e, status: 'running' } : e
-    ));
-    message.success('实验已开始');
+  const handleStart = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('experiments')
+        .update({ status: 'running' })
+        .eq('id', id);
+
+      if (error) {
+        console.error('更新实验失败:', error);
+        message.error('更新失败');
+        return;
+      }
+
+      setExperiments(prev => prev.map(e =>
+        e.id === id ? { ...e, status: 'running' } : e
+      ));
+      message.success('实验已开始');
+    } catch (err) {
+      console.error('更新实验异常:', err);
+      message.error('更新失败');
+    }
   };
 
   // 完成实验
-  const handleComplete = (id: string) => {
-    setExperiments(prev => prev.map(e =>
-      e.id === id
-        ? {
-          ...e,
+  const handleComplete = async (id: string) => {
+    try {
+      // 模拟实验结果
+      const result = {
+        a_value: Math.round(Math.random() * 100) / 10,
+        b_value: Math.round((Math.random() * 10 + 5) * 10) / 10,
+        lift: `+${(Math.random() * 50 + 10).toFixed(1)}%`,
+        confidence: 0.9 + Math.random() * 0.09
+      };
+
+      const { error } = await supabase
+        .from('experiments')
+        .update({ 
           status: 'completed',
-          result: {
-            aValue: Math.random() * 10,
-            bValue: Math.random() * 10 + 5,
-            lift: `+${(Math.random() * 50 + 10).toFixed(1)}%`,
-            confidence: 0.9 + Math.random() * 0.09
-          }
-        }
-        : e
-    ));
-    message.success('实验已完成');
+          result: result
+        })
+        .eq('id', id);
+
+      if (error) {
+        console.error('更新实验失败:', error);
+        message.error('更新失败');
+        return;
+      }
+
+      setExperiments(prev => prev.map(e =>
+        e.id === id ? { ...e, status: 'completed', result } : e
+      ));
+      message.success('实验已完成');
+    } catch (err) {
+      console.error('更新实验异常:', err);
+      message.error('更新失败');
+    }
   };
 
   // AI分析实验
@@ -187,20 +232,20 @@ const ExperimentsPage: React.FC = () => {
     },
     {
       title: '测试指标',
-      dataIndex: 'metricName',
-      key: 'metricName',
+      dataIndex: 'metric_name',
+      key: 'metric_name',
       render: (metric: string) => <Tag color="blue">{metric}</Tag>
     },
     {
       title: '变体A',
-      dataIndex: 'variantA',
-      key: 'variantA',
+      dataIndex: 'variant_a',
+      key: 'variant_a',
       ellipsis: true
     },
     {
       title: '变体B',
-      dataIndex: 'variantB',
-      key: 'variantB',
+      dataIndex: 'variant_b',
+      key: 'variant_b',
       ellipsis: true
     },
     {
@@ -211,10 +256,10 @@ const ExperimentsPage: React.FC = () => {
         return (
           <div>
             <div>
-              <Text>A: {record.result.aValue.toFixed(1)}%</Text>
+              <Text>A: {record.result.a_value}%</Text>
             </div>
             <div>
-              <Text>B: {record.result.bValue.toFixed(1)}%</Text>
+              <Text>B: {record.result.b_value}%</Text>
             </div>
             <div>
               <Tag color={record.result.lift.startsWith('+') ? 'green' : 'red'}>
@@ -230,14 +275,14 @@ const ExperimentsPage: React.FC = () => {
       key: 'confidence',
       render: (_: unknown, record: Experiment) => {
         if (!record.result) return <Text type="secondary">-</Text>;
-        const percent = record.result.confidence * 100;
+        const percent = Math.round(record.result.confidence * 100);
         return (
           <div>
             <Progress
               percent={percent}
               size="small"
               status={percent >= 95 ? 'success' : 'active'}
-              format={() => `${percent.toFixed(0)}%`}
+              format={() => `${percent}%`}
             />
           </div>
         );
@@ -255,8 +300,9 @@ const ExperimentsPage: React.FC = () => {
     },
     {
       title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt'
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (date: string) => date ? new Date(date).toLocaleDateString() : '-'
     },
     {
       title: '操作',
@@ -278,13 +324,29 @@ const ExperimentsPage: React.FC = () => {
               <Button type="link" icon={<RobotOutlined />} onClick={() => handleAiAnalyze(record.id)} />
             </Tooltip>
           )}
-          <Button type="link" size="small">
-            详情
-          </Button>
+          <Tooltip title="删除">
+            <Button 
+              type="link" 
+              icon={<DeleteOutlined />} 
+              onClick={() => handleDelete(record.id)}
+              danger
+            />
+          </Tooltip>
         </Space>
       )
     }
   ];
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '100px 0' }}>
+        <Spin size="large" />
+        <div style={{ marginTop: 16 }}>
+          <Text type="secondary">加载中...</Text>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -375,21 +437,21 @@ const ExperimentsPage: React.FC = () => {
             <TextArea rows={2} placeholder="例如：简化注册步骤可以提升注册转化率" />
           </Form.Item>
           <Form.Item
-            name="variantA"
+            name="variant_a"
             label="变体A（对照组）"
             rules={[{ required: true, message: '请输入变体A描述' }]}
           >
             <Input placeholder="例如：当前3步注册流程" />
           </Form.Item>
           <Form.Item
-            name="variantB"
+            name="variant_b"
             label="变体B（实验组）"
             rules={[{ required: true, message: '请输入变体B描述' }]}
           >
             <Input placeholder="例如：简化为1步注册（仅手机号）" />
           </Form.Item>
           <Form.Item
-            name="metricName"
+            name="metric_name"
             label="测试指标"
             rules={[{ required: true, message: '请选择测试指标' }]}
           >

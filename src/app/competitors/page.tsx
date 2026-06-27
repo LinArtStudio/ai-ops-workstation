@@ -1,10 +1,11 @@
-// 竞品监控页面
+// 竞品监控页面 - 已接入Supabase数据持久化
 'use client';
 
-import React, { useState } from 'react';
-import { Card, Table, Tag, Button, Modal, Form, Input, Typography, message, Space, Tooltip, Row, Col, Descriptions } from 'antd';
-import { PlusOutlined, EyeOutlined, RobotOutlined, LinkOutlined, EditOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Card, Table, Tag, Button, Modal, Form, Input, Typography, message, Space, Tooltip, Row, Col, Descriptions, Spin } from 'antd';
+import { PlusOutlined, EyeOutlined, RobotOutlined, LinkOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { generateCompetitorAnalysis } from '@/lib/ai';
+import { supabase } from '@/lib/supabase';
 import EmptyState from '@/components/EmptyState';
 
 const { Title, Text, Paragraph } = Typography;
@@ -18,79 +19,106 @@ interface Competitor {
   strengths: string[];
   weaknesses: string[];
   notes: string;
-  lastUpdated: string;
+  last_updated: string;
+  created_at: string;
 }
 
 const CompetitorsPage: React.FC = () => {
-  const [competitors, setCompetitors] = useState<Competitor[]>([
-    {
-      id: '1',
-      name: '神策数据',
-      url: 'https://www.sensorsdata.cn',
-      pricing: '5万+/年',
-      strengths: ['功能全面', '私有化部署成熟', '数据精度高'],
-      weaknesses: ['价格高', '接入复杂', '学习曲线陡'],
-      notes: '国内用户行为分析头部产品',
-      lastUpdated: '2026-06-25'
-    },
-    {
-      id: '2',
-      name: 'GrowingIO',
-      url: 'https://www.growingio.com',
-      pricing: '不透明，需联系顾问',
-      strengths: ['无埋点降低门槛', '操作体验好', '大客户背书'],
-      weaknesses: ['价格不透明', '无免费版', '私有化成本高'],
-      notes: '无埋点先驱，面向中大企业',
-      lastUpdated: '2026-06-20'
-    },
-    {
-      id: '3',
-      name: 'Webfunny',
-      url: 'https://www.webfunny.com',
-      pricing: '社区版免费',
-      strengths: ['开源免费', '监控+埋点一体化', '私有化简单'],
-      weaknesses: ['分析深度不足', '品牌知名度低'],
-      notes: '开源一体化监控工具',
-      lastUpdated: '2026-06-18'
-    },
-    {
-      id: '4',
-      name: 'Microsoft Clarity',
-      url: 'https://clarity.microsoft.com',
-      pricing: '完全免费',
-      strengths: ['完全免费', 'AI功能免费', '开箱即用'],
-      weaknesses: ['不支持移动端App', '功能相对基础'],
-      notes: '微软出品的免费行为分析工具',
-      lastUpdated: '2026-06-15'
-    }
-  ]);
-
+  const [competitors, setCompetitors] = useState<Competitor[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedCompetitor, setSelectedCompetitor] = useState<Competitor | null>(null);
+  const [analyzing, setAnalyzing] = useState<string | null>(null);
   const [form] = Form.useForm();
+
+  // 从Supabase加载数据
+  useEffect(() => {
+    fetchCompetitors();
+  }, []);
+
+  const fetchCompetitors = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('competitors')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('加载竞品失败:', error);
+        message.error('加载数据失败');
+        return;
+      }
+
+      setCompetitors(data || []);
+    } catch (err) {
+      console.error('加载竞品异常:', err);
+      message.error('加载数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 添加竞品
   const handleAdd = async (values: { name: string; url: string; pricing: string; notes: string }) => {
     try {
-      const newCompetitor: Competitor = {
-        id: Date.now().toString(),
-        name: values.name,
-        url: values.url,
-        pricing: values.pricing,
-        strengths: [],
-        weaknesses: [],
-        notes: values.notes,
-        lastUpdated: new Date().toLocaleDateString()
-      };
+      const { data, error } = await supabase
+        .from('competitors')
+        .insert({
+          name: values.name,
+          url: values.url,
+          pricing: values.pricing,
+          notes: values.notes,
+          strengths: [],
+          weaknesses: [],
+          last_updated: new Date().toISOString()
+        })
+        .select()
+        .single();
 
-      setCompetitors(prev => [newCompetitor, ...prev]);
+      if (error) {
+        console.error('添加竞品失败:', error);
+        message.error('添加失败');
+        return;
+      }
+
+      setCompetitors(prev => [data, ...prev]);
       setModalVisible(false);
       form.resetFields();
       message.success('竞品添加成功');
-    } catch (error) {
+    } catch (err) {
+      console.error('添加竞品异常:', err);
       message.error('添加失败');
     }
+  };
+
+  // 删除竞品
+  const handleDelete = async (id: string) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: '确定要删除这个竞品吗？',
+      onOk: async () => {
+        try {
+          const { error } = await supabase
+            .from('competitors')
+            .delete()
+            .eq('id', id);
+
+          if (error) {
+            console.error('删除竞品失败:', error);
+            message.error('删除失败');
+            return;
+          }
+
+          setCompetitors(prev => prev.filter(c => c.id !== id));
+          message.success('删除成功');
+        } catch (err) {
+          console.error('删除竞品异常:', err);
+          message.error('删除失败');
+        }
+      }
+    });
   };
 
   // AI分析竞品
@@ -98,8 +126,7 @@ const CompetitorsPage: React.FC = () => {
     const competitor = competitors.find(c => c.id === id);
     if (!competitor) return;
 
-    message.info('AI正在分析竞品...');
-    
+    setAnalyzing(id);
     try {
       // 构建竞品信息
       const competitorInfo = `
@@ -107,20 +134,33 @@ const CompetitorsPage: React.FC = () => {
 官网：${competitor.url}
 定价：${competitor.pricing}
 备注：${competitor.notes}
-优势：${competitor.strengths.join('、')}
-劣势：${competitor.weaknesses.join('、')}
+优势：${(competitor.strengths || []).join('、') || '暂无'}
+劣势：${(competitor.weaknesses || []).join('、') || '暂无'}
       `;
       
       // 调用真实AI API分析
       const analysis = await generateCompetitorAnalysis(competitor.name, competitorInfo);
       
-      // 更新竞品数据
+      // 更新竞品数据到Supabase
+      const { error } = await supabase
+        .from('competitors')
+        .update({
+          notes: analysis,
+          last_updated: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) {
+        console.error('更新竞品失败:', error);
+      }
+
+      // 更新本地状态
       setCompetitors(prev => prev.map(c =>
         c.id === id
           ? { 
               ...c, 
               notes: analysis,
-              lastUpdated: new Date().toLocaleDateString() 
+              last_updated: new Date().toISOString()
             }
           : c
       ));
@@ -129,6 +169,8 @@ const CompetitorsPage: React.FC = () => {
     } catch (error) {
       console.error('AI分析失败:', error);
       message.error('AI服务暂时不可用，请稍后重试');
+    } finally {
+      setAnalyzing(null);
     }
   };
 
@@ -161,7 +203,7 @@ const CompetitorsPage: React.FC = () => {
       title: '定价',
       dataIndex: 'pricing',
       key: 'pricing',
-      render: (pricing: string) => <Tag color="blue">{pricing}</Tag>
+      render: (pricing: string) => <Tag color="blue">{pricing || '未知'}</Tag>
     },
     {
       title: '优势',
@@ -169,10 +211,10 @@ const CompetitorsPage: React.FC = () => {
       key: 'strengths',
       render: (strengths: string[]) => (
         <div style={{ maxWidth: 200 }}>
-          {strengths.slice(0, 2).map((s, i) => (
+          {(strengths || []).slice(0, 2).map((s, i) => (
             <Tag key={i} color="green" style={{ marginBottom: 4 }}>{s}</Tag>
           ))}
-          {strengths.length > 2 && <Tag>+{strengths.length - 2}</Tag>}
+          {(strengths || []).length > 2 && <Tag>+{strengths.length - 2}</Tag>}
         </div>
       )
     },
@@ -182,17 +224,18 @@ const CompetitorsPage: React.FC = () => {
       key: 'weaknesses',
       render: (weaknesses: string[]) => (
         <div style={{ maxWidth: 200 }}>
-          {weaknesses.slice(0, 2).map((w, i) => (
+          {(weaknesses || []).slice(0, 2).map((w, i) => (
             <Tag key={i} color="red" style={{ marginBottom: 4 }}>{w}</Tag>
           ))}
-          {weaknesses.length > 2 && <Tag>+{weaknesses.length - 2}</Tag>}
+          {(weaknesses || []).length > 2 && <Tag>+{weaknesses.length - 2}</Tag>}
         </div>
       )
     },
     {
       title: '更新时间',
-      dataIndex: 'lastUpdated',
-      key: 'lastUpdated'
+      dataIndex: 'last_updated',
+      key: 'last_updated',
+      render: (date: string) => date ? new Date(date).toLocaleDateString() : '-'
     },
     {
       title: '操作',
@@ -203,15 +246,36 @@ const CompetitorsPage: React.FC = () => {
             <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} />
           </Tooltip>
           <Tooltip title="AI分析">
-            <Button type="link" icon={<RobotOutlined />} onClick={() => handleAiAnalyze(record.id)} />
+            <Button 
+              type="link" 
+              icon={<RobotOutlined />} 
+              onClick={() => handleAiAnalyze(record.id)}
+              loading={analyzing === record.id}
+            />
           </Tooltip>
-          <Tooltip title="编辑">
-            <Button type="link" icon={<EditOutlined />} />
+          <Tooltip title="删除">
+            <Button 
+              type="link" 
+              icon={<DeleteOutlined />} 
+              onClick={() => handleDelete(record.id)}
+              danger
+            />
           </Tooltip>
         </Space>
       )
     }
   ];
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '100px 0' }}>
+        <Spin size="large" />
+        <div style={{ marginTop: 16 }}>
+          <Text type="secondary">加载中...</Text>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -243,7 +307,7 @@ const CompetitorsPage: React.FC = () => {
           <Card size="small">
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 24, fontWeight: 700, color: '#52c41a' }}>
-                {competitors.filter(c => c.strengths.length > 0).length}
+                {competitors.filter(c => (c.strengths || []).length > 0).length}
               </div>
               <div>已分析</div>
             </div>
@@ -253,7 +317,10 @@ const CompetitorsPage: React.FC = () => {
           <Card size="small">
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 24, fontWeight: 700, color: '#faad14' }}>
-                {competitors.filter(c => c.lastUpdated === new Date().toLocaleDateString()).length}
+                {competitors.filter(c => {
+                  const today = new Date().toDateString();
+                  return c.last_updated && new Date(c.last_updated).toDateString() === today;
+                }).length}
               </div>
               <div>今日更新</div>
             </div>
@@ -344,14 +411,16 @@ const CompetitorsPage: React.FC = () => {
                 </a>
               </Descriptions.Item>
               <Descriptions.Item label="定价">{selectedCompetitor.pricing}</Descriptions.Item>
-              <Descriptions.Item label="更新时间">{selectedCompetitor.lastUpdated}</Descriptions.Item>
+              <Descriptions.Item label="更新时间">
+                {selectedCompetitor.last_updated ? new Date(selectedCompetitor.last_updated).toLocaleString() : '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="备注" span={2}>{selectedCompetitor.notes}</Descriptions.Item>
             </Descriptions>
 
             <Row gutter={[16, 16]}>
               <Col span={12}>
                 <Card title="✅ 优势" size="small">
-                  {selectedCompetitor.strengths.length > 0 ? (
+                  {(selectedCompetitor.strengths || []).length > 0 ? (
                     selectedCompetitor.strengths.map((s, i) => (
                       <Tag key={i} color="green" style={{ marginBottom: 8 }}>{s}</Tag>
                     ))
@@ -362,7 +431,7 @@ const CompetitorsPage: React.FC = () => {
               </Col>
               <Col span={12}>
                 <Card title="❌ 劣势" size="small">
-                  {selectedCompetitor.weaknesses.length > 0 ? (
+                  {(selectedCompetitor.weaknesses || []).length > 0 ? (
                     selectedCompetitor.weaknesses.map((w, i) => (
                       <Tag key={i} color="red" style={{ marginBottom: 8 }}>{w}</Tag>
                     ))
@@ -374,10 +443,15 @@ const CompetitorsPage: React.FC = () => {
             </Row>
 
             <div style={{ marginTop: 24, textAlign: 'center' }}>
-              <Button type="primary" icon={<RobotOutlined />} onClick={() => {
-                handleAiAnalyze(selectedCompetitor.id);
-                setDetailModalVisible(false);
-              }}>
+              <Button 
+                type="primary" 
+                icon={<RobotOutlined />} 
+                loading={analyzing === selectedCompetitor.id}
+                onClick={() => {
+                  handleAiAnalyze(selectedCompetitor.id);
+                  setDetailModalVisible(false);
+                }}
+              >
                 AI分析竞品
               </Button>
             </div>
