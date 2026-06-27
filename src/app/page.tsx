@@ -2,7 +2,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Statistic, Table, Tag, Typography, Spin, Empty, Progress, Space, Tooltip } from 'antd';
+import Link from 'next/link';
+import { Row, Col, Card, Statistic, Table, Tag, Typography, Spin, Empty, Progress, Space, Tooltip, Button } from 'antd';
 import {
   ArrowUpOutlined,
   ArrowDownOutlined,
@@ -12,7 +13,8 @@ import {
   DollarOutlined,
   InfoCircleOutlined,
   RiseOutlined,
-  FallOutlined
+  FallOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import dynamic from 'next/dynamic';
 
@@ -130,6 +132,75 @@ const DashboardPage: React.FC = () => {
     ]
   };
 
+  // 用户增长趋势图配置
+  const userGrowthOption = {
+    tooltip: {
+      trigger: 'axis' as const
+    },
+    legend: {
+      data: ['新增用户', '活跃用户']
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category' as const,
+      boundaryGap: false,
+      data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+    },
+    yAxis: {
+      type: 'value' as const
+    },
+    series: [
+      {
+        name: '新增用户',
+        type: 'line',
+        stack: 'Total',
+        data: [120, 132, 101, 134, 90, 230, 210],
+        smooth: true,
+        areaStyle: {}
+      },
+      {
+        name: '活跃用户',
+        type: 'line',
+        stack: 'Total',
+        data: [220, 182, 191, 234, 290, 330, 310],
+        smooth: true,
+        areaStyle: {}
+      }
+    ]
+  };
+
+  // 功能使用雷达图配置
+  const featureUsageOption = {
+    tooltip: {},
+    legend: {
+      data: ['功能使用率']
+    },
+    radar: {
+      indicator: [
+        { name: 'AI助手', max: 100 },
+        { name: '数据看板', max: 100 },
+        { name: '用户反馈', max: 100 },
+        { name: '竞品监控', max: 100 },
+        { name: 'AI周报', max: 100 },
+        { name: '增长实验', max: 100 }
+      ]
+    },
+    series: [{
+      type: 'radar',
+      data: [
+        {
+          value: [80, 90, 70, 60, 85, 50],
+          name: '功能使用率'
+        }
+      ]
+    }]
+  };
+
   // 最近活动表格列
   const activityColumns = [
     {
@@ -189,7 +260,19 @@ const DashboardPage: React.FC = () => {
           <Title level={4} style={{ margin: 0 }}>📊 数据看板</Title>
           <Text type="secondary">实时监控产品核心指标</Text>
         </div>
-        <Tag color="orange">演示数据</Tag>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Tag color="orange">演示数据</Tag>
+          <Button 
+            icon={<ReloadOutlined />} 
+            onClick={() => {
+              setLoading(true);
+              setTimeout(() => setLoading(false), 500);
+            }}
+            size="small"
+          >
+            刷新
+          </Button>
+        </div>
       </div>
 
       {/* 核心指标卡片 */}
@@ -334,8 +417,22 @@ const DashboardPage: React.FC = () => {
         </Col>
       </Row>
 
+      {/* 新增图表区域 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} lg={12}>
+          <Card title="📈 用户增长趋势">
+            <ReactECharts option={userGrowthOption} style={{ height: 300 }} />
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card title="🎯 功能使用雷达图">
+            <ReactECharts option={featureUsageOption} style={{ height: 300 }} />
+          </Card>
+        </Col>
+      </Row>
+
       {/* 最近活动 */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={16}>
           <Card title="🔔 最近活动">
             <Table
@@ -364,6 +461,34 @@ const DashboardPage: React.FC = () => {
               <Tag color="purple">建议</Tag>
               <Text>关注竞品动态，近期有3个竞品更新了功能</Text>
             </div>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 快捷操作 */}
+      <Row gutter={[16, 16]}>
+        <Col span={24}>
+          <Card title="⚡ 快捷操作">
+            <Row gutter={[16, 16]}>
+              {[
+                { icon: '📊', title: '生成周报', desc: 'AI自动生成本周运营周报', href: '/reports', color: '#1677ff' },
+                { icon: '🤖', title: 'AI助手', desc: '智能分析运营数据', href: '/ai-assistant', color: '#722ed1' },
+                { icon: '👥', title: '用户反馈', desc: '查看最新用户反馈', href: '/feedback', color: '#52c41a' },
+                { icon: '🔍', title: '竞品监控', desc: '查看竞品最新动态', href: '/competitors', color: '#fa8c16' },
+                { icon: '🧪', title: '增长实验', desc: '管理A/B测试实验', href: '/experiments', color: '#eb2f96' },
+                { icon: '💡', title: '洞察行动', desc: '查看数据洞察和行动建议', href: '/insights', color: '#13c2c2' },
+              ].map((item, i) => (
+                <Col xs={12} sm={8} md={4} key={i}>
+                  <Link href={item.href} style={{ textDecoration: 'none' }}>
+                    <Card hoverable style={{ textAlign: 'center', height: '100%' }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>{item.icon}</div>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>{item.title}</div>
+                      <div style={{ fontSize: 12, color: '#666' }}>{item.desc}</div>
+                    </Card>
+                  </Link>
+                </Col>
+              ))}
+            </Row>
           </Card>
         </Col>
       </Row>

@@ -4,7 +4,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Tag, Button, Modal, Form, Input, Select, Typography, message, Space, Tooltip, Spin } from 'antd';
 import { PlusOutlined, FilterOutlined, RobotOutlined, ReloadOutlined } from '@ant-design/icons';
-import { analyzeFeedback } from '@/lib/ai';
 import { supabase } from '@/lib/supabase';
 import EmptyState from '@/components/EmptyState';
 
@@ -128,7 +127,17 @@ const FeedbackPage: React.FC = () => {
 
       // 异步调用AI分析
       try {
-        const analysis = await analyzeFeedback(values.content);
+        const response = await fetch('/api/feedback/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: values.content })
+        });
+        
+        if (!response.ok) {
+          throw new Error('分析请求失败');
+        }
+        
+        const { result: analysis } = await response.json();
         
         // 更新Supabase中的AI分析结果
         const { error: updateError } = await supabase

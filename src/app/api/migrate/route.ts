@@ -1,17 +1,32 @@
 // 临时API：执行数据库迁移
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const migrateSecret = process.env.MIGRATE_SECRET || '';
 
-export async function GET() {
-  // 安全检查：仅在开发环境或有service key时执行
+export async function GET(request: NextRequest) {
+  // 安全检查1：仅在开发环境或有service key时执行
   if (!supabaseServiceKey) {
     return NextResponse.json({ 
       error: 'Service role key not configured',
       message: 'Please add SUPABASE_SERVICE_ROLE_KEY to .env.local'
     }, { status: 400 });
+  }
+
+  // 安全检查2：生产环境需要提供密钥
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (isProduction) {
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    
+    if (!migrateSecret || token !== migrateSecret) {
+      return NextResponse.json({ 
+        error: 'Unauthorized',
+        message: 'Production environment requires MIGRATE_SECRET'
+      }, { status: 401 });
+    }
   }
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
