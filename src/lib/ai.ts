@@ -19,6 +19,12 @@ interface ChatCompletion {
 const ZHIPUAI_API_KEY = process.env.ZHIPUAI_API_KEY || '';
 const ZHIPUAI_BASE_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 
+function assertApiKey() {
+  if (!ZHIPUAI_API_KEY) {
+    throw new Error('ZHIPUAI_API_KEY 未配置');
+  }
+}
+
 // 通用聊天完成
 export async function chatCompletion(
   messages: ChatMessage[],
@@ -28,6 +34,8 @@ export async function chatCompletion(
     maxTokens?: number;
   } = {}
 ): Promise<string> {
+  assertApiKey();
+
   const {
     model = 'glm-4-flash',
     temperature = 0.7,
@@ -66,6 +74,8 @@ export async function chatCompletionStream(
     maxTokens?: number;
   } = {}
 ): Promise<ReadableStream> {
+  assertApiKey();
+
   const {
     model = 'glm-4-flash',
     temperature = 0.7,
@@ -173,15 +183,114 @@ export async function analyzeFeedback(content: string): Promise<{
     { role: 'user', content }
   ], { temperature: 0.1 });
 
+  const fallback = {
+    category: 'other',
+    sentiment: 'neutral',
+    priority: 3,
+    summary: content.slice(0, 50),
+  };
+
   try {
-    return JSON.parse(result);
-  } catch {
-    return {
-      category: 'other',
-      sentiment: 'neutral',
-      priority: 3,
-      summary: content.slice(0, 50)
+    const cleaned = result
+      .replace(/```json\s*/gi, '')
+      .replace(/```/g, '')
+      .trim();
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    const jsonText =
+      start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned;
+    const parsed = JSON.parse(jsonText) as {
+      category?: string;
+      sentiment?: string;
+      priority?: number;
+      summary?: string;
     };
+
+    const categories = ['bug', 'feature', 'ux', 'performance', 'other'] as const;
+    const sentiments = ['positive', 'negative', 'neutral'] as const;
+    const category = categories.includes(parsed.category as (typeof categories)[number])
+      ? (parsed.category as string)
+      : 'other';
+    const sentiment = sentiments.includes(
+      parsed.sentiment as (typeof sentiments)[number]
+    )
+      ? (parsed.sentiment as string)
+      : 'neutral';
+    const priorityNum = Number(parsed.priority);
+    const priority =
+      Number.isFinite(priorityNum) && priorityNum >= 1 && priorityNum <= 5
+        ? Math.round(priorityNum)
+        : 3;
+
+    return {
+      category,
+      sentiment,
+      priority,
+      summary: String(parsed.summary || content.slice(0, 50)).slice(0, 120),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+export interface OpsInsight {
+  type: 'opportunity' | 'risk' | 'action';
+  title: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  source: string;
+}
+
+/** Generate 3–5 actionable insights from aggregated feedback text. */
+export async function generateInsightsFromFeedback(
+  feedbackSummary: string
+): Promise<OpsInsight[]> {
+  const systemPrompt = `你是产品运营专家。基于用户反馈摘要，输出 3 到 5 条可执行洞察。
+严格返回 JSON 数组，不要 Markdown，不要解释。每项字段：
+{
+  "type": "opportunity" | "risk" | "action",
+  "title": "短标题",
+  "description": "一句话说明原因与建议",
+  "priority": "high" | "medium" | "low",
+  "source": "用户反馈"
+}`;
+
+  const result = await chatCompletion(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: feedbackSummary },
+    ],
+    { temperature: 0.3, maxTokens: 1500 }
+  );
+
+  try {
+    const cleaned = result.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleaned) as OpsInsight[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item?.title && item?.description)
+      .slice(0, 5)
+      .map((item) => ({
+        type: (['opportunity', 'risk', 'action'] as const).includes(item.type)
+          ? item.type
+          : 'action',
+        title: String(item.title).slice(0, 80),
+        description: String(item.description).slice(0, 300),
+        priority: (['high', 'medium', 'low'] as const).includes(item.priority)
+          ? item.priority
+          : 'medium',
+        source: item.source || '用户反馈',
+      }));
+  } catch {
+    return [
+      {
+        type: 'action',
+        title: '梳理本周高频反馈',
+        description: feedbackSummary.slice(0, 200) || '暂无反馈摘要，请先录入用户反馈。',
+        priority: 'medium',
+        source: '用户反馈',
+      },
+    ];
   }
 }
 

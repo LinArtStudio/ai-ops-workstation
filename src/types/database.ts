@@ -10,6 +10,57 @@ export interface Project {
   updated_at: string;
 }
 
+export interface ProjectMember {
+  id: string;
+  project_id: string;
+  user_id: string;
+  role: 'owner' | 'member';
+  created_at: string;
+}
+
+export interface ProjectInvite {
+  id: string;
+  project_id: string;
+  email: string;
+  token: string;
+  role: 'owner' | 'member';
+  status: 'pending' | 'accepted' | 'revoked' | 'expired';
+  invited_by?: string;
+  expires_at: string;
+  created_at: string;
+  accepted_at?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  project_id?: string;
+  actor_id?: string;
+  action: string;
+  entity_type?: string;
+  entity_id?: string;
+  meta?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface ProjectPlan {
+  project_id: string;
+  plan: 'free' | 'pro' | 'team';
+  ai_quota_monthly: number;
+  notes?: string;
+  updated_at: string;
+  created_at: string;
+}
+
+export interface AiUsageEvent {
+  id: string;
+  project_id: string;
+  user_id?: string;
+  feature: string;
+  units: number;
+  meta?: Record<string, unknown>;
+  created_at: string;
+}
+
 export interface Metric {
   id: number;
   project_id: string;

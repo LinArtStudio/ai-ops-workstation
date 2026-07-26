@@ -4,8 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Tag, Button, Modal, Form, Input, Typography, message, Space, Tooltip, Row, Col, Descriptions, Spin } from 'antd';
 import { PlusOutlined, EyeOutlined, RobotOutlined, LinkOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { generateCompetitorAnalysis } from '@/lib/ai';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
+import { useProject } from '@/contexts/ProjectContext';
 import EmptyState from '@/components/EmptyState';
 
 const { Title, Text, Paragraph } = Typography;
@@ -24,6 +24,7 @@ interface Competitor {
 }
 
 const CompetitorsPage: React.FC = () => {
+  const { project } = useProject();
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -32,17 +33,25 @@ const CompetitorsPage: React.FC = () => {
   const [analyzing, setAnalyzing] = useState<string | null>(null);
   const [form] = Form.useForm();
 
-  // 从Supabase加载数据
   useEffect(() => {
-    fetchCompetitors();
-  }, []);
+    void fetchCompetitors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id]);
 
   const fetchCompetitors = async () => {
+    if (!project) {
+      setCompetitors([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('competitors')
         .select('*')
+        .eq('project_id', project.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -62,10 +71,17 @@ const CompetitorsPage: React.FC = () => {
 
   // 添加竞品
   const handleAdd = async (values: { name: string; url: string; pricing: string; notes: string }) => {
+    if (!project) {
+      message.error('项目未就绪');
+      return;
+    }
+
     try {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('competitors')
         .insert({
+          project_id: project.id,
           name: values.name,
           url: values.url,
           pricing: values.pricing,
@@ -99,11 +115,14 @@ const CompetitorsPage: React.FC = () => {
       title: '确认删除',
       content: '确定要删除这个竞品吗？',
       onOk: async () => {
+        if (!project) return;
         try {
+          const supabase = createClient();
           const { error } = await supabase
             .from('competitors')
             .delete()
-            .eq('id', id);
+            .eq('id', id)
+            .eq('project_id', project.id);
 
           if (error) {
             console.error('删除竞品失败:', error);
@@ -138,17 +157,32 @@ const CompetitorsPage: React.FC = () => {
 劣势：${(competitor.weaknesses || []).join('、') || '暂无'}
       `;
       
-      // 调用真实AI API分析
-      const analysis = await generateCompetitorAnalysis(competitor.name, competitorInfo);
-      
-      // 更新竞品数据到Supabase
+      const response = await fetch('/api/ai/competitor-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          competitorName: competitor.name,
+          competitorInfo,
+          projectId: project?.id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('分析请求失败');
+      }
+
+      const { analysis } = await response.json();
+
+      if (!project) return;
+      const supabase = createClient();
       const { error } = await supabase
         .from('competitors')
         .update({
           notes: analysis,
           last_updated: new Date().toISOString()
         })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('project_id', project.id);
 
       if (error) {
         console.error('更新竞品失败:', error);

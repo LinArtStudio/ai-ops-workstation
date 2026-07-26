@@ -6,11 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "node scripts/apply-migrations.js",
+    "db:migrate:m0c": "node scripts/apply-migrations.js --file 20260726_m0c_invite_audit.sql",
+    "db:open-sql": "node scripts/open-sql-migrate.js",
+    "db:open-sql:m1": "node scripts/open-sql-migrate.js --file 20260726_m1_billing_quota.sql",
+    "verify:stage-a": "node scripts/verify-stage-a.js"
   },
   "dependencies": {
     "@ant-design/icons": "^6.2.5",
     "@ant-design/nextjs-registry": "^1.3.0",
+    "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.108.2",
     "antd": "^6.4.5",
     "dayjs": "^1.11.21",
@@ -27,6 +33,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "pg": "^8.22.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

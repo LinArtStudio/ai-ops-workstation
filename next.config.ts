@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Smaller production artifact for low-memory Aliyun deploys
+  output: "standalone",
 };
 
 export default nextConfig;

@@ -4,6 +4,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, Input, Button, List, Tag, Typography, Spin, message, Tooltip, Space } from 'antd';
 import { SendOutlined, RobotOutlined, UserOutlined, ClearOutlined, CopyOutlined, LikeOutlined, DislikeOutlined } from '@ant-design/icons';
+import { useProject } from '@/contexts/ProjectContext';
 
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -22,6 +23,7 @@ const AiAssistantPage: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { project } = useProject();
 
   // 自动滚动到底部
   useEffect(() => {
@@ -31,6 +33,10 @@ const AiAssistantPage: React.FC = () => {
   // 发送消息
   const handleSend = async () => {
     if (!inputValue.trim() || loading) return;
+    if (!project?.id) {
+      message.warning('请先选择或创建项目');
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -51,6 +57,7 @@ const AiAssistantPage: React.FC = () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          projectId: project.id,
           messages: [
             {
               role: 'system',

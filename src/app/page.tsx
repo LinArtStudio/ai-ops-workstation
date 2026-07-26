@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Row, Col, Card, Statistic, Table, Tag, Typography, Spin, Empty, Progress, Space, Tooltip, Button } from 'antd';
+import { Row, Col, Card, Statistic, Table, Tag, Typography, Spin, Empty, Progress, Space, Tooltip, Button, Alert } from 'antd';
 import {
   ArrowUpOutlined,
   ArrowDownOutlined,
@@ -17,6 +17,7 @@ import {
   ReloadOutlined
 } from '@ant-design/icons';
 import dynamic from 'next/dynamic';
+import { useProject } from '@/contexts/ProjectContext';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -47,10 +48,11 @@ const mockFeedbackDistribution = [
 ];
 
 const DashboardPage: React.FC = () => {
+  const { project } = useProject();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 模拟加载
+    // 模拟加载（看板指标仍为演示数据；真实闭环见反馈 / 周报）
     setTimeout(() => setLoading(false), 500);
   }, []);
 
@@ -257,8 +259,10 @@ const DashboardPage: React.FC = () => {
       {/* 页面标题 */}
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <Title level={4} style={{ margin: 0 }}>📊 数据看板</Title>
-          <Text type="secondary">实时监控产品核心指标</Text>
+          <Title level={4} style={{ margin: 0 }}>数据看板</Title>
+          <Text type="secondary">
+            {project ? `当前项目：${project.name}` : '实时监控产品核心指标'}
+          </Text>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Tag color="orange">演示数据</Tag>
@@ -274,6 +278,20 @@ const DashboardPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="看板指标仍为演示数据"
+        description={
+          <span>
+            Phase A 真实闭环在「用户反馈 → AI 分析 → AI 周报」。请先去{' '}
+            <Link href="/feedback">反馈中心</Link> 录入并分析，再在{' '}
+            <Link href="/reports">周报</Link> 一键生成。
+          </span>
+        }
+      />
 
       {/* 核心指标卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

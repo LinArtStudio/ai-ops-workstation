@@ -1,34 +1,54 @@
-// AI对话API - 流式响应
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireProjectMembership } from '@/lib/tenancy';
 import { chatCompletionStream } from '@/lib/ai';
+import { consumeAiQuota } from '@/lib/quota';
 
 export async function POST(request: NextRequest) {
+  if (!process.env.ZHIPUAI_API_KEY) {
+    return NextResponse.json({ error: 'AI 服务未配置' }, { status: 503 });
+  }
+
   try {
-    const { messages } = await request.json();
+    const { messages, projectId } = await request.json();
+
+    const access = await requireProjectMembership(projectId);
+    if (access.error) return access.error;
 
     if (!messages || !Array.isArray(messages)) {
-      return new Response(
-        JSON.stringify({ error: '消息格式错误' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return NextResponse.json({ error: '消息格式错误' }, { status: 400 });
     }
 
-    // 调用智谱AI流式API
+    if (messages.length > 40) {
+      return NextResponse.json({ error: '消息过多' }, { status: 400 });
+    }
+
+    const totalChars = messages.reduce((sum: number, m: { content?: unknown }) => {
+      return sum + (typeof m?.content === 'string' ? m.content.length : 0);
+    }, 0);
+    if (totalChars > 24000) {
+      return NextResponse.json({ error: '消息内容过长' }, { status: 400 });
+    }
+
+    const quota = await consumeAiQuota(access.supabase, {
+      projectId: access.projectId,
+      user: access.user,
+      feature: 'chat',
+      units: 1,
+    });
+    if (!quota.ok) return quota.error;
+
     const stream = await chatCompletionStream(messages);
 
-    // 返回流式响应
     return new Response(stream, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
-      }
+        Connection: 'keep-alive',
+        'X-AI-Quota-Remaining': String(quota.status.remaining),
+      },
     });
   } catch (error) {
     console.error('AI对话错误:', error);
-    return new Response(
-      JSON.stringify({ error: 'AI服务暂时不可用' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return NextResponse.json({ error: 'AI服务暂时不可用' }, { status: 500 });
   }
 }

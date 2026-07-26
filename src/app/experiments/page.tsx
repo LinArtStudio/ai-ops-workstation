@@ -4,7 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Tag, Button, Modal, Form, Input, Select, Typography, message, Space, Tooltip, Row, Col, Progress, Statistic, Spin } from 'antd';
 import { PlusOutlined, ExperimentOutlined, PlayCircleOutlined, PauseCircleOutlined, CheckCircleOutlined, RobotOutlined, DeleteOutlined } from '@ant-design/icons';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
+import { useProject } from '@/contexts/ProjectContext';
 import EmptyState from '@/components/EmptyState';
 
 const { Title, Text } = Typography;
@@ -28,22 +29,31 @@ interface Experiment {
 }
 
 const ExperimentsPage: React.FC = () => {
+  const { project } = useProject();
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [form] = Form.useForm();
 
-  // 从Supabase加载数据
   useEffect(() => {
-    fetchExperiments();
-  }, []);
+    void fetchExperiments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id]);
 
   const fetchExperiments = async () => {
+    if (!project) {
+      setExperiments([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('experiments')
         .select('*')
+        .eq('project_id', project.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -90,10 +100,17 @@ const ExperimentsPage: React.FC = () => {
     variant_b: string;
     metric_name: string;
   }) => {
+    if (!project) {
+      message.error('项目未就绪');
+      return;
+    }
+
     try {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('experiments')
         .insert({
+          project_id: project.id,
           name: values.name,
           hypothesis: values.hypothesis,
           variant_a: values.variant_a,
@@ -126,11 +143,14 @@ const ExperimentsPage: React.FC = () => {
       title: '确认删除',
       content: '确定要删除这个实验吗？',
       onOk: async () => {
+        if (!project) return;
         try {
+          const supabase = createClient();
           const { error } = await supabase
             .from('experiments')
             .delete()
-            .eq('id', id);
+            .eq('id', id)
+            .eq('project_id', project.id);
 
           if (error) {
             console.error('删除实验失败:', error);
@@ -150,11 +170,14 @@ const ExperimentsPage: React.FC = () => {
 
   // 开始实验
   const handleStart = async (id: string) => {
+    if (!project) return;
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from('experiments')
         .update({ status: 'running' })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('project_id', project.id);
 
       if (error) {
         console.error('更新实验失败:', error);
@@ -174,6 +197,7 @@ const ExperimentsPage: React.FC = () => {
 
   // 完成实验
   const handleComplete = async (id: string) => {
+    if (!project) return;
     try {
       // 模拟实验结果
       const result = {
@@ -183,13 +207,15 @@ const ExperimentsPage: React.FC = () => {
         confidence: 0.9 + Math.random() * 0.09
       };
 
+      const supabase = createClient();
       const { error } = await supabase
         .from('experiments')
         .update({ 
           status: 'completed',
           result: result
         })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('project_id', project.id);
 
       if (error) {
         console.error('更新实验失败:', error);
