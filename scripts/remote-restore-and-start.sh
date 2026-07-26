@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# Emergency: restore latest backup and start ai-ops on :3002
+# Emergency: restore latest prev/backup release and start ai-ops on :3002
 set -eu
 
-LATEST=$(ls -1dt /opt/ai-ops-workstation-backup-* 2>/dev/null | head -1 || true)
+LATEST=$(
+  ls -1dt /opt/ai-ops-workstation-prev-* /opt/ai-ops-workstation-backup-* 2>/dev/null \
+    | head -1 || true
+)
+
 if [ -z "${LATEST}" ]; then
-  echo "No backup found"
+  echo "No prev/backup release found"
   ls -la /opt | grep ai-ops || true
   exit 1
 fi
@@ -25,11 +29,14 @@ if [ ! -f ecosystem.config.js ]; then
 module.exports = {
   apps: [{
     name: 'ai-ops',
-    script: 'npm',
-    args: 'start',
+    script: 'server.js',
     cwd: '/opt/ai-ops-workstation',
-    env: { PORT: '3002', NODE_ENV: 'production' },
-    max_memory_restart: '200M'
+    env: {
+      PORT: '3002',
+      HOSTNAME: '0.0.0.0',
+      NODE_ENV: 'production'
+    },
+    max_memory_restart: '250M'
   }]
 }
 ECO
@@ -38,4 +45,5 @@ fi
 pm2 start ecosystem.config.js
 pm2 save
 curl -sI http://127.0.0.1:3002 | head -8
-echo RESTORE_OK
+curl -s http://127.0.0.1:3002/api/health || true
+echo

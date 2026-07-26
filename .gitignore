@@ -18,6 +18,12 @@
 .DS_Store
 *.pem
 
+# deploy packages (never commit)
+*.tar.gz
+*.tgz
+ai-ops-standalone-*/
+ai-product-ops-workstation.tar.gz
+
 # debug
 npm-debug.log*
 yarn-debug.log*
